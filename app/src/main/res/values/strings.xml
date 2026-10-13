@@ -1,1 +1,31 @@
-
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">orx share</string>
+    <string name="tagline">Share big files at lightning speed</string>
+    <string name="storage_title">Phone storage</string>
+    <string name="storage_free">%1$s free</string>
+    <string name="storage_total">of %1$s</string>
+    <string name="storage_used">%1$s used</string>
+    <string name="btn_send">Send</string>
+    <string name="btn_receive">Receive</string>
+    <string name="btn_pick_files">Choose files</string>
+    <string name="files_selected">%1$d file(s) selected</string>
+    <string name="status_idle">Ready</string>
+    <string name="status_advertising">Waiting for a nearby phone…</string>
+    <string name="status_discovering">Looking for nearby phones…</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="status_connected">Connected to %1$s</string>
+    <string name="status_sending">Sending… %1$d%%</string>
+    <string name="status_receiving">Receiving… %1$d%%</string>
+    <string name="status_done">Transfer complete</string>
+    <string name="status_failed">Transfer failed</string>
+    <string name="nearby_devices">Nearby phones</string>
+    <string name="no_devices">No phones found yet</string>
+    <string name="btn_stop">Stop</string>
+    <string name="verify_title">Verify connection</string>
+    <string name="verify_body">Make sure this code is the same on both phones: %1$s</string>
+    <string name="btn_accept">Accept</string>
+    <string name="btn_reject">Reject</string>
+    <string name="permissions_needed">Permissions are required to find nearby phones</string>
+    <string name="received_in">Saved in: %1$s</string>
+</resources>
