@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">orx share</string>
+    <string name="tagline">شارك الملفات الكبيرة بسرعة فائقة</string>
+    <string name="storage_title">مساحة الهاتف</string>
+    <string name="storage_free">%1$s متبقية</string>
+    <string name="storage_total">من %1$s</string>
+    <string name="storage_used">%1$s مستخدمة</string>
+    <string name="btn_send">إرسال</string>
+    <string name="btn_receive">استقبال</string>
+    <string name="btn_pick_files">اختر الملفات</string>
+    <string name="files_selected">تم اختيار %1$d ملف</string>
+    <string name="status_idle">جاهز</string>
+    <string name="status_advertising">في انتظار هاتف قريب…</string>
+    <string name="status_discovering">جارٍ البحث عن هواتف قريبة…</string>
+    <string name="status_connecting">جارٍ الاتصال…</string>
+    <string name="status_connected">تم الاتصال بـ %1$s</string>
+    <string name="status_sending">جارٍ الإرسال… %1$d%%</string>
+    <string name="status_receiving">جارٍ الاستقبال… %1$d%%</string>
+    <string name="status_done">اكتمل النقل</string>
+    <string name="status_failed">فشل النقل</string>
+    <string name="nearby_devices">هواتف قريبة</string>
+    <string name="no_devices">لم يتم العثور على هواتف بعد</string>
+    <string name="btn_stop">إيقاف</string>
+    <string name="verify_title">تأكيد الاتصال</string>
+    <string name="verify_body">تأكد أن هذا الرمز متطابق على الهاتفين: %1$s</string>
+    <string name="btn_accept">قبول</string>
+    <string name="btn_reject">رفض</string>
+    <string name="permissions_needed">الأذونات مطلوبة للعثور على الهواتف القريبة</string>
+    <string name="received_in">تم الحفظ في: %1$s</string>
+</resources>
