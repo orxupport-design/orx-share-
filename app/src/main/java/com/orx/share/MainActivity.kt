@@ -39,7 +39,10 @@ class MainActivity : ComponentActivity() {
                 val permissionLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestMultiplePermissions()
                 ) { result ->
-                    if (result.values.all { it }) {
+                    // "Approximate" location is enough, so ignore a denied FINE location.
+                    val ok = result.filterKeys { it != Manifest.permission.ACCESS_FINE_LOCATION }
+                        .values.all { it }
+                    if (ok) {
                         afterPermission?.invoke()
                     } else {
                         Toast.makeText(this, R.string.permissions_needed, Toast.LENGTH_LONG).show()
@@ -97,9 +100,9 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             list += Manifest.permission.NEARBY_WIFI_DEVICES
         }
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S) {
-            list += Manifest.permission.ACCESS_FINE_LOCATION
-        }
+        // Requested on every Android version: Nearby fails with 8034 without it on some devices.
+        list += Manifest.permission.ACCESS_COARSE_LOCATION
+        list += Manifest.permission.ACCESS_FINE_LOCATION
         return list.toTypedArray()
     }
 }
