@@ -4,8 +4,10 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.OpenableColumns
+import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
+import com.google.android.gms.nearby.connection.ConnectionsStatusCodes
 import com.google.android.gms.nearby.connection.ConnectionInfo
 import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback
 import com.google.android.gms.nearby.connection.ConnectionResolution
@@ -48,6 +50,7 @@ class NearbyManager(context: Context) {
         val done: Boolean = false,
         val failed: Boolean = false,
         val savedDir: String? = null,
+        val error: String? = null,
     )
 
     private val appContext = context.applicationContext
@@ -77,7 +80,7 @@ class NearbyManager(context: Context) {
         _state.update { it.copy(phase = Phase.ADVERTISING) }
         val options = AdvertisingOptions.Builder().setStrategy(strategy).build()
         client.startAdvertising(deviceName, serviceId, connectionCallback, options)
-            .addOnFailureListener { fail() }
+            .addOnFailureListener { fail(it) }
     }
 
     fun startSending() {
@@ -85,13 +88,13 @@ class NearbyManager(context: Context) {
         _state.update { it.copy(phase = Phase.DISCOVERING) }
         val options = DiscoveryOptions.Builder().setStrategy(strategy).build()
         client.startDiscovery(serviceId, discoveryCallback, options)
-            .addOnFailureListener { fail() }
+            .addOnFailureListener { fail(it) }
     }
 
     fun connectTo(peer: Peer) {
         _state.update { it.copy(phase = Phase.CONNECTING) }
         client.requestConnection(deviceName, peer.id, connectionCallback)
-            .addOnFailureListener { fail() }
+            .addOnFailureListener { fail(it) }
     }
 
     fun stop() {
@@ -110,8 +113,11 @@ class NearbyManager(context: Context) {
         _state.value = UiState()
     }
 
-    private fun fail() {
-        _state.update { it.copy(phase = Phase.IDLE, failed = true, transferring = false) }
+    private fun fail(e: Exception? = null) {
+        val detail = (e as? ApiException)
+            ?.let { "${it.statusCode}: ${ConnectionsStatusCodes.getStatusCodeString(it.statusCode)}" }
+            ?: e?.message
+        _state.update { it.copy(phase = Phase.IDLE, failed = true, transferring = false, error = detail) }
     }
 
     // ---------- Pairing confirmation (protects against connecting to the wrong phone) ----------
@@ -188,7 +194,13 @@ class NearbyManager(context: Context) {
                     )
                 }
             } else {
-                _state.update { it.copy(phase = Phase.IDLE, pending = null, failed = true) }
+                val code = result.status.statusCode
+                _state.update {
+                    it.copy(
+                        phase = Phase.IDLE, pending = null, failed = true,
+                        error = "$code: ${ConnectionsStatusCodes.getStatusCodeString(code)}",
+                    )
+                }
             }
         }
 
