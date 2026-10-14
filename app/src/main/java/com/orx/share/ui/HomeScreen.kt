@@ -277,7 +277,11 @@ private fun StatusBlock(state: NearbyManager.UiState) {
         else -> stringResource(R.string.status_idle)
     }
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text, fontWeight = FontWeight.Medium)
+        Text(text, fontWeight = FontWeight.Medium, color = OrxText)
+        state.error?.let {
+            Spacer(Modifier.height(6.dp))
+            Text(it, color = OrxMuted, fontSize = 12.sp, textAlign = TextAlign.Center)
+        }
         if (state.transferring) {
             Spacer(Modifier.height(10.dp))
             LinearProgressIndicator(
