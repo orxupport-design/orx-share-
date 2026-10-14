@@ -1,8 +1,11 @@
 package com.orx.share.ui
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 
 val OrxBg = Color(0xFF0B1020)
@@ -25,5 +28,8 @@ private val Scheme = darkColorScheme(
 
 @Composable
 fun OrxTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = Scheme, content = content)
+    MaterialTheme(colorScheme = Scheme) {
+        // Surface sets the default text color; without it text is black on the dark background.
+        Surface(modifier = Modifier.fillMaxSize(), color = OrxBg, contentColor = OrxText, content = content)
+    }
 }
