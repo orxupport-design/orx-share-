@@ -1,9 +1,8 @@
 name: Build APK
 
+# Manual only: open Actions > Build APK > Run workflow.
 on:
   workflow_dispatch:
-  push:
-    branches: [main, master]
 
 jobs:
   build:
