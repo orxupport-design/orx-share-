@@ -28,4 +28,53 @@
     <string name="btn_reject">Reject</string>
     <string name="permissions_needed">Permissions are required to find nearby phones</string>
     <string name="received_in">Saved in: %1$s</string>
+
+    <!-- Phase 2: sharing apps -->
+    <string name="tab_files">Files</string>
+    <string name="tab_apps">Apps</string>
+    <string name="apps_loading">Loading apps…</string>
+    <string name="apps_selected">%1$d app(s) selected</string>
+    <string name="received_apps_title">Received apps</string>
+    <string name="scanning">Checking the app…</string>
+    <string name="receiving_wait">Receiving the app…</string>
+    <string name="btn_install">Install</string>
+    <string name="btn_install_anyway">Install anyway</string>
+    <string name="btn_delete">Delete</string>
+    <string name="btn_save">Save</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="app_version">Version %1$s</string>
+
+    <!-- Security findings (shown only when something looks harmful) -->
+    <string name="finding_unreadable">This file is damaged or is not a valid app.</string>
+    <string name="finding_unsigned">The app has no valid signature, so it may have been tampered with.</string>
+    <string name="finding_spoof">It pretends to be an app you already have (%1$s) but is signed by a different developer. It is probably a fake or modified copy.</string>
+    <string name="finding_permissions">It asks for very powerful permissions: %1$s.</string>
+    <string name="finding_vt_danger">%1$s security engines on VirusTotal flag this app as malicious.</string>
+    <string name="finding_vt_caution">%1$s security engine(s) on VirusTotal flag this app as suspicious.</string>
+    <string name="perm_accessibility">control the screen (Accessibility)</string>
+    <string name="perm_overlay">draw over other apps</string>
+    <string name="perm_sms">read or send text messages</string>
+    <string name="perm_device_admin">become a device administrator</string>
+    <string name="perm_listener">read all notifications</string>
+    <string name="perm_install">install other apps</string>
+    <string name="perm_calllog">read the call history</string>
+    <string name="list_sep">", "</string>
+
+    <!-- VirusTotal (optional online check) -->
+    <string name="vt_settings">Online scan (VirusTotal)</string>
+    <string name="vt_dialog_title">Online scan with VirusTotal</string>
+    <string name="vt_dialog_body">Paste a free API key from virustotal.com (Profile, then API key). Only the fingerprint of the app (SHA-256) is sent, never the file itself. Leave it empty to turn this off.</string>
+    <string name="vt_key_hint">API key</string>
+    <string name="vt_clean">VirusTotal: no threats found</string>
+    <string name="vt_unknown">VirusTotal: this file has not been seen before</string>
+    <string name="vt_error">VirusTotal: check not available right now</string>
+    <string name="vt_bad_key">VirusTotal: the API key was rejected</string>
+
+    <!-- Installing -->
+    <string name="allow_install_then_retry">Allow orx share to install apps, then press Install again</string>
+    <string name="install_done">Installed successfully</string>
+    <string name="install_failed">Install failed: %1$s</string>
+    <string name="btn_scan_file">Scan an APK from this phone</string>
+    <string name="apk_imported">App added. Scroll down to see the scan result.</string>
+    <string name="apk_import_failed">Could not read this file. Choose a file that ends with .apk</string>
 </resources>
