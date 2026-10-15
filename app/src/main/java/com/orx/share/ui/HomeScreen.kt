@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material3.AlertDialog
@@ -32,10 +34,16 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -43,16 +51,32 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.orx.share.ApkGroup
+import com.orx.share.InstalledApp
 import com.orx.share.NearbyManager
 import com.orx.share.R
+import com.orx.share.ScanReport
 import com.orx.share.StorageInfo
 
 @Composable
 fun HomeScreen(
     state: NearbyManager.UiState,
     storage: StorageInfo,
+    tab: Int,
+    onTab: (Int) -> Unit,
     selectedCount: Int,
     onPickFiles: () -> Unit,
+    onScanFile: () -> Unit,
+    apps: List<InstalledApp>,
+    appsLoading: Boolean,
+    selectedApps: Set<String>,
+    onToggleApp: (String) -> Unit,
+    vtKey: String,
+    onSaveVtKey: (String) -> Unit,
+    receivedApps: List<ApkGroup>,
+    scanApp: suspend (ApkGroup) -> ScanReport,
+    onInstallApp: (ApkGroup) -> Unit,
+    onDeleteApp: (ApkGroup) -> Unit,
     onSend: () -> Unit,
     onReceive: () -> Unit,
     onStop: () -> Unit,
@@ -62,11 +86,13 @@ fun HomeScreen(
 ) {
     val idle = state.phase == NearbyManager.Phase.IDLE
     val gradient = Brush.linearGradient(listOf(OrxCyan, OrxViolet))
+    var showVt by remember { mutableStateOf(false) }
 
     Box(
         Modifier
             .fillMaxSize()
             .background(OrxBg)
+            .systemBarsPadding()
     ) {
         Column(
             Modifier
@@ -97,18 +123,57 @@ fun HomeScreen(
             StorageCard(storage)
 
             Spacer(Modifier.height(16.dp))
-            OutlinedButton(
-                onClick = onPickFiles,
-                enabled = idle,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-            ) {
-                Icon(Icons.Rounded.AttachFile, null)
-                Spacer(Modifier.size(8.dp))
-                Text(
-                    if (selectedCount > 0) stringResource(R.string.files_selected, selectedCount)
-                    else stringResource(R.string.btn_pick_files)
+            TabSwitch(tab = tab, onTab = onTab, enabled = idle)
+
+            Spacer(Modifier.height(12.dp))
+            if (tab == 0) {
+                OutlinedButton(
+                    onClick = onPickFiles,
+                    enabled = idle,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Icon(Icons.Rounded.AttachFile, null)
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        if (selectedCount > 0) stringResource(R.string.files_selected, selectedCount)
+                        else stringResource(R.string.btn_pick_files)
+                    )
+                }
+            } else {
+                AppPicker(
+                    apps = apps,
+                    loading = appsLoading,
+                    selected = selectedApps,
+                    enabled = idle,
+                    onToggle = onToggleApp,
                 )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        if (selectedCount > 0) stringResource(R.string.apps_selected, selectedCount) else "",
+                        color = OrxMuted,
+                        fontSize = 12.sp,
+                    )
+                    TextButton(onClick = { showVt = true }) {
+                        Icon(Icons.Rounded.Settings, null, Modifier.size(16.dp))
+                        Spacer(Modifier.size(4.dp))
+                        Text(stringResource(R.string.vt_settings), fontSize = 12.sp)
+                    }
+                }
+                OutlinedButton(
+                    onClick = onScanFile,
+                    enabled = idle,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Icon(Icons.Rounded.AttachFile, null)
+                    Spacer(Modifier.size(8.dp))
+                    Text(stringResource(R.string.btn_scan_file))
+                }
             }
 
             Spacer(Modifier.height(12.dp))
@@ -192,7 +257,39 @@ fun HomeScreen(
                     textAlign = TextAlign.Center,
                 )
             }
+
+            if (receivedApps.isNotEmpty()) {
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    stringResource(R.string.received_apps_title),
+                    color = OrxMuted,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                receivedApps.forEach { group ->
+                    key(group.id) {
+                        ReceivedAppCard(
+                            group = group,
+                            rescanKey = vtKey,
+                            busy = state.transferring,
+                            scan = scanApp,
+                            onInstall = { onInstallApp(group) },
+                            onDelete = { onDeleteApp(group) },
+                        )
+                    }
+                }
+            }
         }
+    }
+
+    if (showVt) {
+        VtKeyDialog(
+            current = vtKey,
+            onSave = {
+                onSaveVtKey(it)
+                showVt = false
+            },
+            onDismiss = { showVt = false },
+        )
     }
 
     state.pending?.let { p ->
@@ -213,6 +310,37 @@ fun HomeScreen(
                 TextButton(onClick = onReject) { Text(stringResource(R.string.btn_reject)) }
             },
         )
+    }
+}
+
+/** Switch between sharing files and sharing apps. */
+@Composable
+private fun TabSwitch(tab: Int, onTab: (Int) -> Unit, enabled: Boolean) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(OrxSurface)
+            .padding(4.dp)
+    ) {
+        listOf(R.string.tab_files, R.string.tab_apps).forEachIndexed { index, label ->
+            val selected = tab == index
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (selected) OrxViolet else Color.Transparent)
+                    .clickable(enabled = enabled) { onTab(index) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    stringResource(label),
+                    fontWeight = FontWeight.Medium,
+                    color = if (selected) Color.White else OrxMuted,
+                )
+            }
+        }
     }
 }
 
