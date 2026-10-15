@@ -3,14 +3,15 @@ package com.orx.share
 import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
-import com.google.android.gms.nearby.connection.ConnectionsStatusCodes
 import com.google.android.gms.nearby.connection.ConnectionInfo
 import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback
 import com.google.android.gms.nearby.connection.ConnectionResolution
+import com.google.android.gms.nearby.connection.ConnectionsStatusCodes
 import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo
 import com.google.android.gms.nearby.connection.DiscoveryOptions
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback
@@ -21,13 +22,16 @@ import com.google.android.gms.nearby.connection.Strategy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
-import java.io.FileInputStream
+import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Handles discovery (Bluetooth/BLE) and fast transfer (Wi-Fi Direct / Wi-Fi hotspot)
@@ -39,6 +43,10 @@ class NearbyManager(context: Context) {
     enum class Phase { IDLE, ADVERTISING, DISCOVERING, CONNECTING, CONNECTED }
     data class Peer(val id: String, val name: String)
     data class Pending(val id: String, val name: String, val digits: String)
+
+    /** One thing to send: a Uri and (optionally) the name the receiver should save it under. */
+    data class SendItem(val uri: Uri, val name: String? = null)
+
     data class UiState(
         val phase: Phase = Phase.IDLE,
         val peers: List<Peer> = emptyList(),
@@ -51,6 +59,8 @@ class NearbyManager(context: Context) {
         val failed: Boolean = false,
         val savedDir: String? = null,
         val error: String? = null,
+        /** Increases every time a received file has been fully saved, so the UI can refresh its lists. */
+        val receivedTick: Int = 0,
     )
 
     private val appContext = context.applicationContext
@@ -64,14 +74,14 @@ class NearbyManager(context: Context) {
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     private var connectedId: String? = null
-    private val incomingNames = HashMap<Long, String>()
-    private val incomingFiles = HashMap<Long, Payload>()
-    private val sendingIds = HashSet<Long>()
-    private val progressMap = HashMap<Long, Pair<Long, Long>>() // id -> (transferred, total)
 
-    private val receiveDir: File
-        get() = (appContext.getExternalFilesDir("Received") ?: File(appContext.filesDir, "Received"))
-            .also { it.mkdirs() }
+    // These are touched from Nearby callbacks (main thread) and from the saving coroutines (IO threads).
+    private val endpointNames = ConcurrentHashMap<String, String>()
+    private val incomingNames = ConcurrentHashMap<Long, String>()
+    private val incomingFiles = ConcurrentHashMap<Long, Payload>()
+    private val sendingIds = ConcurrentHashMap.newKeySet<Long>()
+    private val progressMap = ConcurrentHashMap<Long, Pair<Long, Long>>() // id -> (transferred, total)
+    private val pendingSaves = AtomicInteger(0)
 
     // ---------- Start / stop ----------
 
@@ -106,10 +116,12 @@ class NearbyManager(context: Context) {
 
     private fun reset() {
         connectedId = null
+        endpointNames.clear()
         incomingNames.clear()
         incomingFiles.clear()
         sendingIds.clear()
         progressMap.clear()
+        pendingSaves.set(0)
         _state.value = UiState()
     }
 
@@ -136,25 +148,38 @@ class NearbyManager(context: Context) {
 
     // ---------- Sending ----------
 
-    fun sendFiles(uris: List<Uri>) {
+    fun sendFiles(items: List<SendItem>) {
         val target = connectedId ?: return
-        _state.update { it.copy(transferring = true, sending = true, done = false, failed = false, progress = 0) }
-        for (uri in uris) {
-            val pfd = appContext.contentResolver.openFileDescriptor(uri, "r") ?: continue
+        progressMap.clear()
+        _state.update {
+            it.copy(transferring = true, sending = true, done = false, failed = false, error = null, progress = 0)
+        }
+        var sent = 0
+        for (item in items) {
+            val pfd = runCatching { appContext.contentResolver.openFileDescriptor(item.uri, "r") }
+                .getOrNull() ?: continue
             val payload = Payload.fromFile(pfd)
             sendingIds.add(payload.id)
-            val name = queryName(uri) ?: "file_${payload.id}"
+            val name = item.name ?: queryName(item.uri) ?: "file_${payload.id}"
             // Send the file name first, then the file itself.
             client.sendPayload(target, Payload.fromBytes("FILE:${payload.id}:$name".toByteArray()))
             client.sendPayload(target, payload)
+            sent++
+        }
+        if (sent == 0) {
+            _state.update {
+                it.copy(transferring = false, failed = true, error = "Could not read the selected items")
+            }
         }
     }
 
     private fun queryName(uri: Uri): String? =
-        appContext.contentResolver.query(uri, null, null, null, null)?.use { c ->
-            val i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (i >= 0 && c.moveToFirst()) c.getString(i) else null
-        }
+        runCatching {
+            appContext.contentResolver.query(uri, null, null, null, null)?.use { c ->
+                val i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (i >= 0 && c.moveToFirst()) c.getString(i) else null
+            }
+        }.getOrNull()
 
     // ---------- Callbacks ----------
 
@@ -173,6 +198,7 @@ class NearbyManager(context: Context) {
 
     private val connectionCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(id: String, info: ConnectionInfo) {
+            endpointNames[id] = info.endpointName
             _state.update {
                 it.copy(
                     phase = Phase.CONNECTING,
@@ -189,7 +215,7 @@ class NearbyManager(context: Context) {
                 _state.update {
                     it.copy(
                         phase = Phase.CONNECTED,
-                        connectedName = it.pending?.name ?: it.peers.firstOrNull { p -> p.id == id }?.name,
+                        connectedName = endpointNames[id],
                         pending = null,
                     )
                 }
@@ -222,7 +248,9 @@ class NearbyManager(context: Context) {
                 }
                 Payload.Type.FILE -> {
                     incomingFiles[payload.id] = payload
-                    _state.update { it.copy(transferring = true, sending = false, done = false, failed = false) }
+                    _state.update {
+                        it.copy(transferring = true, sending = false, done = false, failed = false, error = null)
+                    }
                 }
                 else -> Unit
             }
@@ -241,11 +269,13 @@ class NearbyManager(context: Context) {
                     _state.update { it.copy(progress = pct) }
 
                 PayloadTransferUpdate.Status.SUCCESS -> {
-                    incomingFiles.remove(update.payloadId)?.let { saveReceived(it) }
+                    val received = incomingFiles.remove(update.payloadId)
                     sendingIds.remove(update.payloadId)
-                    if (sendingIds.isEmpty() && incomingFiles.isEmpty()) {
-                        _state.update { it.copy(progress = 100, transferring = false, done = true) }
+                    if (received != null) {
+                        pendingSaves.incrementAndGet()
+                        saveReceived(received)
                     }
+                    maybeFinish()
                 }
 
                 PayloadTransferUpdate.Status.FAILURE,
@@ -257,30 +287,70 @@ class NearbyManager(context: Context) {
         }
     }
 
+    /** The transfer is "done" only when nothing is in flight AND every received file is saved to disk. */
+    private fun maybeFinish() {
+        if (sendingIds.isEmpty() && incomingFiles.isEmpty() && pendingSaves.get() == 0) {
+            _state.update { it.copy(progress = 100, transferring = false, done = !it.failed) }
+        }
+    }
+
     // ---------- Saving received files ----------
 
     private fun saveReceived(payload: Payload) {
-        val pfd = payload.asFile()?.asParcelFileDescriptor() ?: return
-        val rawName = incomingNames.remove(payload.id) ?: "orx_${payload.id}"
+        val pfd = payload.asFile()?.asParcelFileDescriptor()
+        if (pfd == null) {
+            pendingSaves.decrementAndGet()
+            return
+        }
         io.launch {
             try {
-                // Security: strip any path components so a sender can't write outside our folder.
-                val safe = File(rawName).name.ifBlank { "orx_${payload.id}" }
-                var target = File(receiveDir, safe)
-                val base = target.nameWithoutExtension
-                val ext = target.extension.let { if (it.isEmpty()) "" else ".$it" }
-                var n = 1
-                while (target.exists()) {
-                    target = File(receiveDir, "${base}_$n$ext")
-                    n++
+                // The name message is tiny and sent first, but Nearby does not promise the order:
+                // give it a few seconds to arrive before falling back to a generic name.
+                var rawName = incomingNames.remove(payload.id)
+                var waited = 0
+                while (rawName == null && waited < 3000) {
+                    delay(100)
+                    waited += 100
+                    rawName = incomingNames.remove(payload.id)
                 }
-                FileInputStream(pfd.fileDescriptor).use { input ->
-                    target.outputStream().use { out -> input.copyTo(out) }
+                // Security: strip any path components so a sender can't write outside our folders.
+                val safe = File(rawName ?: "orx_${payload.id}").name.ifBlank { "orx_${payload.id}" }
+                val isApp = ReceivedApps.isAppFileName(safe)
+                val dir = if (isApp) ReceivedApps.dir(appContext) else ReceiveDirs.root(appContext)
+
+                var target = File(dir, safe)
+                if (isApp) {
+                    target.delete()
+                } else {
+                    val base = target.nameWithoutExtension
+                    val ext = target.extension.let { if (it.isEmpty()) "" else ".$it" }
+                    var n = 1
+                    while (target.exists()) {
+                        target = File(dir, "${base}_$n$ext")
+                        n++
+                    }
                 }
-                pfd.close()
-                _state.update { it.copy(savedDir = receiveDir.absolutePath) }
+
+                // Write to a temporary name first, so half-written files never show up in the app list.
+                val tmp = File(dir, "${target.name}.part")
+                ParcelFileDescriptor.AutoCloseInputStream(pfd).use { input ->
+                    tmp.outputStream().use { out -> input.copyTo(out) }
+                }
+                if (!tmp.renameTo(target)) {
+                    tmp.delete()
+                    throw IOException("Could not save the file")
+                }
+                _state.update {
+                    it.copy(
+                        savedDir = ReceiveDirs.root(appContext).absolutePath,
+                        receivedTick = it.receivedTick + 1,
+                    )
+                }
             } catch (e: Exception) {
-                _state.update { it.copy(failed = true) }
+                _state.update { it.copy(failed = true, error = e.message) }
+            } finally {
+                pendingSaves.decrementAndGet()
+                maybeFinish()
             }
         }
     }
