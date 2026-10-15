@@ -28,4 +28,53 @@
     <string name="btn_reject">رفض</string>
     <string name="permissions_needed">الأذونات مطلوبة للعثور على الهواتف القريبة</string>
     <string name="received_in">تم الحفظ في: %1$s</string>
+
+    <!-- المرحلة 2: مشاركة التطبيقات -->
+    <string name="tab_files">الملفات</string>
+    <string name="tab_apps">التطبيقات</string>
+    <string name="apps_loading">جارٍ تحميل التطبيقات…</string>
+    <string name="apps_selected">تم اختيار %1$d تطبيق</string>
+    <string name="received_apps_title">التطبيقات المستلمة</string>
+    <string name="scanning">جارٍ فحص التطبيق…</string>
+    <string name="receiving_wait">جارٍ استقبال التطبيق…</string>
+    <string name="btn_install">تثبيت</string>
+    <string name="btn_install_anyway">تثبيت على أي حال</string>
+    <string name="btn_delete">حذف</string>
+    <string name="btn_save">حفظ</string>
+    <string name="btn_cancel">إلغاء</string>
+    <string name="app_version">الإصدار %1$s</string>
+
+    <!-- نتائج الفحص الأمني (تظهر فقط لو في شيء مريب) -->
+    <string name="finding_unreadable">هذا الملف تالف أو ليس تطبيقًا سليمًا.</string>
+    <string name="finding_unsigned">التطبيق بلا توقيع صالح، وقد يكون تم التلاعب به.</string>
+    <string name="finding_spoof">يتظاهر بأنه تطبيق مثبّت لديك (%1$s) لكنه موقّع من مطوّر مختلف. غالبًا هو نسخة مزيّفة أو معدّلة.</string>
+    <string name="finding_permissions">يطلب صلاحيات قوية جدًا: %1$s.</string>
+    <string name="finding_vt_danger">%1$s من محركات الأمان في VirusTotal تعتبر هذا التطبيق ضارًا.</string>
+    <string name="finding_vt_caution">%1$s من محركات الأمان في VirusTotal تعتبر هذا التطبيق مشبوهًا.</string>
+    <string name="perm_accessibility">التحكم في الشاشة (إمكانية الوصول)</string>
+    <string name="perm_overlay">الظهور فوق التطبيقات الأخرى</string>
+    <string name="perm_sms">قراءة أو إرسال الرسائل النصية</string>
+    <string name="perm_device_admin">أن يصبح مدير جهاز</string>
+    <string name="perm_listener">قراءة كل الإشعارات</string>
+    <string name="perm_install">تثبيت تطبيقات أخرى</string>
+    <string name="perm_calllog">قراءة سجل المكالمات</string>
+    <string name="list_sep">"، "</string>
+
+    <!-- VirusTotal (فحص اختياري عبر الإنترنت) -->
+    <string name="vt_settings">الفحص عبر الإنترنت (VirusTotal)</string>
+    <string name="vt_dialog_title">الفحص عبر VirusTotal</string>
+    <string name="vt_dialog_body">الصق مفتاح API مجانيًا من موقع virustotal.com (الملف الشخصي ثم API key). يُرسَل فقط بصمة التطبيق (SHA-256) وليس الملف نفسه. اتركه فارغًا لإيقاف هذه الخاصية.</string>
+    <string name="vt_key_hint">مفتاح API</string>
+    <string name="vt_clean">VirusTotal: لا توجد تهديدات</string>
+    <string name="vt_unknown">VirusTotal: هذا الملف لم يُفحص من قبل</string>
+    <string name="vt_error">VirusTotal: الفحص غير متاح حاليًا</string>
+    <string name="vt_bad_key">VirusTotal: مفتاح API مرفوض</string>
+
+    <!-- التثبيت -->
+    <string name="allow_install_then_retry">اسمح لـ orx share بتثبيت التطبيقات ثم اضغط تثبيت مرة أخرى</string>
+    <string name="install_done">تم التثبيت بنجاح</string>
+    <string name="install_failed">فشل التثبيت: %1$s</string>
+    <string name="btn_scan_file">فحص ملف APK من الهاتف</string>
+    <string name="apk_imported">تمت الإضافة. انزل لأسفل لترى نتيجة الفحص.</string>
+    <string name="apk_import_failed">تعذّر قراءة الملف. اختر ملفًا بصيغة APK</string>
 </resources>
